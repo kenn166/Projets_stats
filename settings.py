@@ -11,7 +11,17 @@ https://docs.djangoproject.com/en/6.0/ref/settings/
 """
 
 from pathlib import Path
+import dj_database_url # Pratique pour gérer l'URL de la DB
+# Récupérer la clé secrète depuis Railway
+SECRET_KEY = os.getenv('SECRET_KEY')
 
+# Autoriser le domaine généré par Railway
+ALLOWED_HOSTS = [os.getenv('RAILWAY_PUBLIC_DOMAIN', 'localhost'), '127.0.0.1']
+
+# Configurer la base de données via l'URL fournie par Railway
+DATABASES = {
+    'default': dj_database_url.config(default=os.getenv('DATABASE_URL'))
+}
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
