@@ -1,0 +1,25 @@
+{% extends "etudes/base.html" %}
+{% block title %}Gestion CRUD — EduStats{% endblock %}
+{% block nav_gestion %}active{% endblock %}
+
+{% block content %}
+<div style="margin-bottom:1.5rem;">
+    <p class="label-xs" style="margin-bottom:0.3rem;">Administration</p>
+    <h1>Gestion des données</h1>
+    <p class="text-muted" style="margin-top:0.3rem;">Ajoutez, modifiez ou supprimez les enregistrements.</p>
+</div>
+
+<div class="grid grid-3" style="gap:1rem;">
+    {% for item in entities %}
+    <a href="{{ item.url }}" style="text-decoration:none;">
+        <div class="card" style="cursor:pointer;transition:border-color 0.18s;display:flex;gap:1rem;align-items:center;" onmouseover="this.style.borderColor='var(--accent)'" onmouseout="this.style.borderColor='var(--border)'">
+            <span style="font-size:2rem;">{{ item.icon }}</span>
+            <div>
+                <p style="font-family:'Syne',sans-serif;font-weight:600;font-size:1rem;">{{ item.label }}</p>
+                <p class="text-muted" style="font-size:0.8rem;margin-top:0.1rem;">{{ item.desc }}</p>
+            </div>
+        </div>
+    </a>
+    {% endfor %}
+</div>
+{% endblock %}

@@ -1,0 +1,49 @@
+{% extends "etudes/base.html" %}
+{% block title %}{{ titre }} — EduStats{% endblock %}
+{% block nav_gestion %}active{% endblock %}
+
+{% block content %}
+<div class="flex-between" style="margin-bottom:1.5rem;">
+    <div>
+        <p class="label-xs" style="margin-bottom:0.3rem;"><a href="{% url 'gestion-index' %}" style="color:var(--text3);text-decoration:none;">Gestion</a> › {{ titre }}</p>
+        <h1>{{ titre }}</h1>
+    </div>
+    <div class="flex gap-sm">
+        <a class="btn" href="{% url 'gestion-index' %}">← Retour</a>
+        <a class="btn btn-primary" href="{% url entite|add:'-ajouter' %}">⊕ Ajouter</a>
+    </div>
+</div>
+
+<div class="card" style="padding:0;overflow:hidden;">
+    <table>
+        <thead>
+            <tr>
+                <th>Élément</th>
+                <th style="width:160px;">Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for objet in objets %}
+            <tr>
+                <td>{{ objet }}</td>
+                <td>
+                    <div class="actions">
+                        <a class="btn" href="{% url entite|add:'-modifier' objet.pk %}" style="font-size:0.8rem;padding:0.3rem 0.7rem;">✏️ Modifier</a>
+                        <a class="btn btn-danger" href="{% url entite|add:'-supprimer' objet.pk %}" style="font-size:0.8rem;padding:0.3rem 0.7rem;">🗑 Suppr.</a>
+                    </div>
+                </td>
+            </tr>
+            {% empty %}
+            <tr>
+                <td colspan="2">
+                    <div class="empty-state" style="padding:2rem;">
+                        <p>Aucun enregistrement.</p>
+                        <a href="{% url entite|add:'-ajouter' %}" class="btn btn-primary" style="margin-top:0.8rem;">⊕ Ajouter le premier</a>
+                    </div>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}

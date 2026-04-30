@@ -1,0 +1,420 @@
+{% extends "etudes/base.html" %}
+{% block title %}Tableau de bord — EduStats{% endblock %}
+{% block nav_bord %}active{% endblock %}
+
+{% block content %}
+<!-- ── HEADER ── -->
+<div class="flex-between mb-1" style="margin-bottom:1.5rem;">
+    <div>
+        <p class="label-xs" style="margin-bottom:0.3rem;">Analyse statistique</p>
+        <h1>Tableau de bord</h1>
+        <p class="text-muted" style="margin-top:0.3rem;">{{ titre_filtre }}</p>
+    </div>
+    <a class="btn btn-primary" href="{% url 'gestion-index' %}">⊕ Gérer les données</a>
+</div>
+
+<!-- ── FILTRES ── -->
+<div class="card" style="margin-bottom:1.5rem;">
+    <form method="get" class="flex" style="gap:1rem;flex-wrap:wrap;align-items:flex-end;">
+        <div style="flex:1;min-width:200px;">
+            <label>Filtrer par classe</label>
+            <select name="classe_id" onchange="this.form.submit()">
+                <option value="">— Toutes les classes —</option>
+                {% for classe in classes %}
+                <option value="{{ classe.id }}" {% if classe_id_selected == classe.id|stringformat:"s" %}selected{% endif %}>
+                    {{ classe.nom }} ({{ classe.annee_scolaire }})
+                </option>
+                {% endfor %}
+            </select>
+        </div>
+        <div style="flex:1;min-width:200px;">
+            <label>Filtrer par matière</label>
+            <select name="matiere_id" onchange="this.form.submit()">
+                <option value="">— Toutes les matières —</option>
+                {% for matiere in matieres %}
+                <option value="{{ matiere.id }}" {% if matiere_id_selected == matiere.id|stringformat:"s" %}selected{% endif %}>
+                    {{ matiere.nom }} (coef. {{ matiere.coefficient }})
+                </option>
+                {% endfor %}
+            </select>
+        </div>
+        {% if classe_id_selected or matiere_id_selected %}
+        <a href="{% url 'tableau-bord-statistiques' %}" class="btn" style="margin-bottom:0;">✕ Réinitialiser</a>
+        {% endif %}
+    </form>
+</div>
+
+{% if nombre_notes == 0 %}
+<div class="card empty-state">
+    <p style="font-size:2.5rem;margin-bottom:0.5rem;">📭</p>
+    <p style="font-weight:600;color:var(--text2);margin-bottom:0.3rem;">Aucune note pour ce filtre</p>
+    <p class="text-muted">Ajoutez des données via la section <a href="{% url 'gestion-index' %}" style="color:var(--accent);">Gestion CRUD</a>.</p>
+</div>
+{% else %}
+
+<!-- ── KPI CARDS ── -->
+<div class="grid grid-5" style="margin-bottom:1rem;">
+    <div class="card-sm">
+        <p class="label-xs">Élèves</p>
+        <p class="value-lg">{{ nombre_eleves }}</p>
+    </div>
+    <div class="card-sm">
+        <p class="label-xs">Notes</p>
+        <p class="value-lg">{{ nombre_notes }}</p>
+    </div>
+    <div class="card-sm">
+        <p class="label-xs">Moyenne</p>
+        <p class="value-lg" style="color:var(--accent);">{{ statistiques.moyenne|floatformat:2 }}</p>
+    </div>
+    <div class="card-sm">
+        <p class="label-xs">Médiane</p>
+        <p class="value-lg" style="color:var(--accent2);">{{ statistiques.mediane|floatformat:2 }}</p>
+    </div>
+    <div class="card-sm">
+        <p class="label-xs">Écart-type</p>
+        <p class="value-lg" style="color:var(--orange);">{{ statistiques.ecart_type|floatformat:2 }}</p>
+    </div>
+</div>
+
+<!-- ── STATISTIQUES DÉTAILLÉES ── -->
+<div class="card" style="margin-bottom:1rem;">
+    <h2>Statistiques descriptives</h2>
+    <div class="grid grid-4">
+        <div style="text-align:center;padding:0.8rem;background:var(--bg2);border-radius:var(--radius-sm);border:1px solid var(--border);">
+            <p class="label-xs">Minimum</p>
+            <p style="font-family:'Syne',sans-serif;font-size:1.4rem;font-weight:700;color:var(--red);margin-top:0.3rem;">{{ statistiques.minimum|floatformat:2 }}</p>
+        </div>
+        <div style="text-align:center;padding:0.8rem;background:var(--bg2);border-radius:var(--radius-sm);border:1px solid var(--border);">
+            <p class="label-xs">Q1 (25e perc.)</p>
+            <p style="font-family:'Syne',sans-serif;font-size:1.4rem;font-weight:700;color:var(--orange);margin-top:0.3rem;">{{ statistiques.q1|floatformat:2 }}</p>
+        </div>
+        <div style="text-align:center;padding:0.8rem;background:var(--bg2);border-radius:var(--radius-sm);border:1px solid var(--border);">
+            <p class="label-xs">Q3 (75e perc.)</p>
+            <p style="font-family:'Syne',sans-serif;font-size:1.4rem;font-weight:700;color:var(--yellow);margin-top:0.3rem;">{{ statistiques.q3|floatformat:2 }}</p>
+        </div>
+        <div style="text-align:center;padding:0.8rem;background:var(--bg2);border-radius:var(--radius-sm);border:1px solid var(--border);">
+            <p class="label-xs">Maximum</p>
+            <p style="font-family:'Syne',sans-serif;font-size:1.4rem;font-weight:700;color:var(--green);margin-top:0.3rem;">{{ statistiques.maximum|floatformat:2 }}</p>
+        </div>
+    </div>
+
+    <!-- Boîte à moustaches visuelle -->
+    <div style="margin-top:1.2rem;padding:1rem;background:var(--bg2);border-radius:var(--radius-sm);border:1px solid var(--border);">
+        <p class="label-xs" style="margin-bottom:0.8rem;">Distribution (boîte à moustaches)</p>
+        <div style="position:relative;height:48px;display:flex;align-items:center;">
+            <div id="boxplot-container" style="width:100%;position:relative;" data-min="{{ statistiques.minimum }}" data-q1="{{ statistiques.q1 }}" data-med="{{ statistiques.mediane }}" data-q3="{{ statistiques.q3 }}" data-max="{{ statistiques.maximum }}"></div>
+        </div>
+        <div style="display:flex;justify-content:space-between;margin-top:0.3rem;">
+            <span class="label-xs" style="color:var(--red);">Min: {{ statistiques.minimum|floatformat:1 }}</span>
+            <span class="label-xs" style="color:var(--orange);">Q1: {{ statistiques.q1|floatformat:1 }}</span>
+            <span class="label-xs" style="color:var(--accent2);">Méd: {{ statistiques.mediane|floatformat:1 }}</span>
+            <span class="label-xs" style="color:var(--yellow);">Q3: {{ statistiques.q3|floatformat:1 }}</span>
+            <span class="label-xs" style="color:var(--green);">Max: {{ statistiques.maximum|floatformat:1 }}</span>
+        </div>
+    </div>
+    <div style="margin-top:0.8rem;display:flex;gap:0.5rem;flex-wrap:wrap;">
+        <span style="background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:0.4rem 0.8rem;font-size:0.82rem;color:var(--text2);">
+            Variance : <strong style="color:var(--text);">{{ statistiques.variance|floatformat:2 }}</strong>
+        </span>
+        <span style="background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:0.4rem 0.8rem;font-size:0.82rem;color:var(--text2);">
+            Étendue : <strong style="color:var(--text);">{{ statistiques.maximum|floatformat:2 }} − {{ statistiques.minimum|floatformat:2 }}</strong>
+        </span>
+        <span style="background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:0.4rem 0.8rem;font-size:0.82rem;color:var(--text2);">
+            IQR : <strong style="color:var(--text);">{{ statistiques.q3|floatformat:2 }} − {{ statistiques.q1|floatformat:2 }}</strong>
+        </span>
+    </div>
+</div>
+
+<!-- ── GRAPHIQUES ROW 1 ── -->
+<div class="grid grid-2" style="margin-bottom:1rem;">
+    <div class="card">
+        <h2>Répartition des notes</h2>
+        <canvas id="repartitionChart" height="200"></canvas>
+    </div>
+    <div class="card">
+        <h2>Top 5 élèves</h2>
+        <canvas id="topElevesChart" height="200"></canvas>
+    </div>
+</div>
+
+<!-- ── GRAPHIQUES ROW 2 (conditionnels) ── -->
+{% if show_radar or show_classe_chart %}
+<div class="grid {% if show_radar and show_classe_chart %}grid-2{% endif %}" style="margin-bottom:1rem;">
+    {% if show_radar %}
+    <div class="card">
+        <h2>Moyennes par matière</h2>
+        <canvas id="radarChart" height="200"></canvas>
+    </div>
+    {% endif %}
+    {% if show_classe_chart %}
+    <div class="card">
+        <h2>Comparaison par classe</h2>
+        <canvas id="classeChart" height="200"></canvas>
+    </div>
+    {% endif %}
+</div>
+{% endif %}
+
+<!-- ── TABLE RÉPARTITION + TOP 5 ── -->
+<div class="grid grid-2" style="margin-bottom:1rem;">
+    <div class="card">
+        <h2>Répartition des notes</h2>
+        <table>
+            <thead>
+                <tr><th>Intervalle</th><th>Effectif</th><th>%</th></tr>
+            </thead>
+            <tbody>
+                {% for intervalle, effectif in repartition.items %}
+                <tr>
+                    <td>{{ intervalle }}</td>
+                    <td><strong>{{ effectif }}</strong></td>
+                    <td>
+                        {% if nombre_notes > 0 %}
+                            {% widthratio effectif nombre_notes 100 %}%
+                        {% else %}—{% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <div class="card">
+        <h2>Top 5 — Meilleurs élèves</h2>
+        <table>
+            <thead>
+                <tr><th>#</th><th>Élève</th><th>Classe</th><th>Moy.</th></tr>
+            </thead>
+            <tbody>
+                {% for item in meilleurs_etudiants %}
+                <tr>
+                    <td>
+                        {% if forloop.counter == 1 %}<span style="font-size:1.1rem;">🥇</span>
+                        {% elif forloop.counter == 2 %}<span style="font-size:1.1rem;">🥈</span>
+                        {% elif forloop.counter == 3 %}<span style="font-size:1.1rem;">🥉</span>
+                        {% else %}<span class="text-muted">{{ forloop.counter }}</span>{% endif %}
+                    </td>
+                    <td><strong>{{ item.etudiant.prenom }} {{ item.etudiant.nom }}</strong></td>
+                    <td><span class="badge badge-blue">{{ item.etudiant.classe.nom }}</span></td>
+                    <td>
+                        <strong style="color:{% if item.moyenne >= 14 %}var(--green){% elif item.moyenne >= 10 %}var(--accent){% else %}var(--red){% endif %};">
+                            {{ item.moyenne|floatformat:2 }}/20
+                        </strong>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr><td colspan="4" class="empty-state">Aucune moyenne disponible.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+{% endif %}{# fin si nombre_notes > 0 #}
+
+<!-- ── DATA JSON ── -->
+<script id="graph-intervalles-labels" type="application/json">{{ graph_intervalles_labels }}</script>
+<script id="graph-intervalles-data" type="application/json">{{ graph_intervalles_data }}</script>
+<script id="graph-top-labels" type="application/json">{{ graph_top_labels }}</script>
+<script id="graph-top-data" type="application/json">{{ graph_top_data }}</script>
+<script id="graph-matiere-labels" type="application/json">{{ graph_matiere_labels }}</script>
+<script id="graph-matiere-data" type="application/json">{{ graph_matiere_data }}</script>
+<script id="graph-classe-labels" type="application/json">{{ graph_classe_labels }}</script>
+<script id="graph-classe-data" type="application/json">{{ graph_classe_data }}</script>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script>
+(function() {
+    function j(id) {
+        try { return JSON.parse(document.getElementById(id).textContent); } catch(e) { return []; }
+    }
+
+    const COLORS = {
+        blue: '#4f8ef7',
+        purple: '#7c6af7',
+        green: '#3ecf8e',
+        orange: '#f5a623',
+        red: '#e84c6a',
+        yellow: '#f7d354',
+    };
+
+    const palette = [COLORS.blue, COLORS.purple, COLORS.green, COLORS.orange, COLORS.red, COLORS.yellow];
+
+    Chart.defaults.color = '#8b94b3';
+    Chart.defaults.borderColor = '#2a3047';
+    Chart.defaults.font.family = "'DM Sans', sans-serif";
+
+    const baseOptions = {
+        responsive: true,
+        plugins: {
+            legend: { display: false },
+            tooltip: {
+                backgroundColor: '#1e2333',
+                borderColor: '#2a3047',
+                borderWidth: 1,
+                titleColor: '#e8ecf4',
+                bodyColor: '#8b94b3',
+                padding: 10,
+                cornerRadius: 8,
+            }
+        }
+    };
+
+    // ── Répartition (doughnut)
+    const repCanvas = document.getElementById('repartitionChart');
+    if (repCanvas) {
+        const labels = j('graph-intervalles-labels');
+        const data = j('graph-intervalles-data');
+        const gradColors = ['#e84c6a', '#f5a623', '#f7d354', '#4f8ef7', '#3ecf8e'];
+        new Chart(repCanvas, {
+            type: 'doughnut',
+            data: {
+                labels,
+                datasets: [{
+                    data,
+                    backgroundColor: gradColors.map(c => c + 'cc'),
+                    borderColor: gradColors,
+                    borderWidth: 2,
+                    hoverOffset: 8,
+                }]
+            },
+            options: {
+                ...baseOptions,
+                plugins: {
+                    ...baseOptions.plugins,
+                    legend: { display: true, position: 'right', labels: { padding: 14, font: { size: 12 } } },
+                },
+                cutout: '62%',
+            }
+        });
+    }
+
+    // ── Top 5 (barres horizontales)
+    const topCanvas = document.getElementById('topElevesChart');
+    if (topCanvas) {
+        const labels = j('graph-top-labels');
+        const data = j('graph-top-data');
+        const barColors = data.map(v => v >= 14 ? COLORS.green : v >= 10 ? COLORS.blue : COLORS.red);
+        new Chart(topCanvas, {
+            type: 'bar',
+            data: {
+                labels,
+                datasets: [{
+                    label: 'Moyenne',
+                    data,
+                    backgroundColor: barColors.map(c => c + '33'),
+                    borderColor: barColors,
+                    borderWidth: 2,
+                    borderRadius: 6,
+                }]
+            },
+            options: {
+                ...baseOptions,
+                indexAxis: 'y',
+                scales: {
+                    x: { min: 0, max: 20, grid: { color: '#2a3047' } },
+                    y: { grid: { display: false } }
+                }
+            }
+        });
+    }
+
+    // ── Radar matières
+    const radarCanvas = document.getElementById('radarChart');
+    if (radarCanvas) {
+        const labels = j('graph-matiere-labels');
+        const data = j('graph-matiere-data');
+        new Chart(radarCanvas, {
+            type: 'radar',
+            data: {
+                labels,
+                datasets: [{
+                    label: 'Moyenne',
+                    data,
+                    backgroundColor: COLORS.blue + '22',
+                    borderColor: COLORS.blue,
+                    pointBackgroundColor: COLORS.blue,
+                    pointBorderColor: '#1e2333',
+                    pointHoverBackgroundColor: '#fff',
+                    borderWidth: 2,
+                }]
+            },
+            options: {
+                ...baseOptions,
+                scales: {
+                    r: {
+                        min: 0, max: 20,
+                        grid: { color: '#2a3047' },
+                        angleLines: { color: '#2a3047' },
+                        pointLabels: { color: '#8b94b3', font: { size: 11 } },
+                        ticks: { backdropColor: 'transparent', color: '#5a637a', stepSize: 5 }
+                    }
+                },
+                plugins: {
+                    ...baseOptions.plugins,
+                    legend: { display: false },
+                }
+            }
+        });
+    }
+
+    // ── Comparaison classes (barres verticales)
+    const classeCanvas = document.getElementById('classeChart');
+    if (classeCanvas) {
+        const labels = j('graph-classe-labels');
+        const data = j('graph-classe-data');
+        new Chart(classeCanvas, {
+            type: 'bar',
+            data: {
+                labels,
+                datasets: [{
+                    label: 'Moyenne',
+                    data,
+                    backgroundColor: palette.map(c => c + '33'),
+                    borderColor: palette,
+                    borderWidth: 2,
+                    borderRadius: 6,
+                }]
+            },
+            options: {
+                ...baseOptions,
+                scales: {
+                    y: { min: 0, max: 20, grid: { color: '#2a3047' } },
+                    x: { grid: { display: false } }
+                }
+            }
+        });
+    }
+
+    // ── Boîte à moustaches (SVG inline)
+    const bp = document.getElementById('boxplot-container');
+    if (bp) {
+        const min = parseFloat(bp.dataset.min);
+        const q1  = parseFloat(bp.dataset.q1);
+        const med = parseFloat(bp.dataset.med);
+        const q3  = parseFloat(bp.dataset.q3);
+        const max = parseFloat(bp.dataset.max);
+        if (!isNaN(min) && !isNaN(max) && max > min) {
+            const W = 600, H = 48, PAD = 20;
+            const scale = v => PAD + (v / 20) * (W - 2 * PAD);
+            const s = {
+                min: scale(min), q1: scale(q1), med: scale(med),
+                q3: scale(q3), max: scale(max)
+            };
+            bp.innerHTML = `<svg viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg" style="width:100%">
+                <!-- whiskers -->
+                <line x1="${s.min}" y1="${H/2}" x2="${s.q1}" y2="${H/2}" stroke="#5a637a" stroke-width="1.5" stroke-dasharray="4,3"/>
+                <line x1="${s.q3}" y1="${H/2}" x2="${s.max}" y2="${H/2}" stroke="#5a637a" stroke-width="1.5" stroke-dasharray="4,3"/>
+                <!-- caps -->
+                <line x1="${s.min}" y1="${H/2-10}" x2="${s.min}" y2="${H/2+10}" stroke="#e84c6a" stroke-width="2"/>
+                <line x1="${s.max}" y1="${H/2-10}" x2="${s.max}" y2="${H/2+10}" stroke="#3ecf8e" stroke-width="2"/>
+                <!-- IQR box -->
+                <rect x="${s.q1}" y="${H/2-13}" width="${s.q3 - s.q1}" height="26" rx="5" fill="rgba(79,142,247,0.12)" stroke="#4f8ef7" stroke-width="1.5"/>
+                <!-- median line -->
+                <line x1="${s.med}" y1="${H/2-13}" x2="${s.med}" y2="${H/2+13}" stroke="#7c6af7" stroke-width="2.5"/>
+            </svg>`;
+        }
+    }
+})();
+</script>
+{% endblock %}
