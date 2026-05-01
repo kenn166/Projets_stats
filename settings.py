@@ -11,6 +11,7 @@ https://docs.djangoproject.com/en/6.0/ref/settings/
 """
 
 from pathlib import Path
+import os
 import dj_database_url # Pratique pour gérer l'URL de la DB
 # Récupérer la clé secrète depuis Railway
 SECRET_KEY = os.getenv('SECRET_KEY')
